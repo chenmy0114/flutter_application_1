@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:math_expressions/math_expressions.dart';
+import 'package:decimal/decimal.dart';
 
 import 'db.dart';
 import 'app_state.dart';
@@ -645,6 +648,37 @@ class _AddRecordDialogState extends State<AddRecordDialog> {
   }
 }
 
+// 历史记录模型
+class CalcHistory {
+  final String expression; // 算式（如"2×3"）
+  final String result; // 结果（如"6"）
+  final DateTime time; // 计算时间
+
+  CalcHistory({
+    required this.expression,
+    required this.result,
+    required this.time,
+  });
+
+  // 转JSON（用于持久化）
+  Map<String, dynamic> toJson() {
+    return {
+      'expression': expression,
+      'result': result,
+      'time': time.toIso8601String(),
+    };
+  }
+
+  // 从JSON解析
+  static CalcHistory fromJson(Map<String, dynamic> json) {
+    return CalcHistory(
+      expression: json['expression'],
+      result: json['result'],
+      time: DateTime.parse(json['time']),
+    );
+  }
+}
+
 // Simple calculator page
 class SimpleCalculatorPage extends StatefulWidget {
   @override
@@ -652,84 +686,255 @@ class SimpleCalculatorPage extends StatefulWidget {
 }
 
 class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
-  String _display = '0';
-  double? _first;
-  String? _op;
-  bool _shouldClear = false;
+  String _displayText = ''; // 显示区域文本
+  String _expression = ''; // 完整算式
+  bool _isCalculated = false; // 是否计算完成
+  List<CalcHistory> _historyList = []; // 历史记录列表
+  bool _showHistory = false; // 是否显示历史记录面板
 
-  void _numPress(String s) {
+  // 初始化：加载本地历史记录
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  // 加载持久化的历史记录
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? historyJson = prefs.getStringList('calc_history');
+    if (historyJson != null) {
+      setState(() {
+        _historyList = historyJson
+            .map((json) => CalcHistory.fromJson(Map<String, dynamic>.from(
+                  Uri.splitQueryString(json), // 简易JSON解析（也可使用json_serializable）
+                )))
+            .toList();
+      });
+    }
+  }
+
+  // 保存历史记录到本地
+  Future<void> _saveHistory(CalcHistory history) async {
     setState(() {
-      if (_shouldClear || _display == '0') {
-        _display = s;
-        _shouldClear = false;
+      _historyList.insert(0, history); // 最新记录插入顶部
+      if (_historyList.length > 20) _historyList.removeLast(); // 限制最多20条
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> historyJson = _historyList
+        .map((h) => Uri(
+              queryParameters: {
+                'expression': h.expression,
+                'result': h.result,
+                'time': h.time.toIso8601String(),
+              },
+            ).query)
+        .toList();
+    await prefs.setStringList('calc_history', historyJson);
+  }
+
+  // 清空历史记录
+  Future<void> _clearHistory() async {
+    setState(() {
+      _historyList.clear();
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('calc_history');
+  }
+
+  // 精度处理：修正浮点数误差（如0.1+0.2=0.3）
+  String _formatResult(double value) {
+    // 转换为Decimal处理精度
+    final decimal = Decimal.parse(value.toString());
+    // 去除末尾的0和小数点
+    String result = decimal
+        .toString()
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+    // 兼容整数显示（如6.0→6）
+    return result.isEmpty ? '0' : result;
+  }
+
+  // 格式化算式（适配math_expressions）
+  String _formatExpression(String expr) {
+    return expr
+        .replaceAll('×', '*')
+        .replaceAll('÷', '/')
+        .replaceAll('%', '/100');
+  }
+
+  // 按键点击事件（数字/运算符）
+  void _onButtonPressed(String value) {
+    setState(() {
+      // 连续计算：计算完成后点击运算符，将结果作为新算式开头
+      if (_isCalculated) {
+        if (['+', '-', '×', '÷'].contains(value)) {
+          _expression = _displayText + value; // 结果+新运算符
+          _displayText = _expression;
+          _isCalculated = false;
+        } else {
+          // 计算完成后点击数字，清空重新输入
+          _expression = value;
+          _displayText = value;
+          _isCalculated = false;
+        }
       } else {
-        _display = _display + s;
+        // 禁止开头直接输入运算符
+        if (_expression.isEmpty && ['+', '-', '×', '÷'].contains(value)) return;
+        // 拼接算式
+        _expression += value;
+        _displayText = _expression;
       }
     });
   }
 
-  void _dot() {
-    if (!_display.contains('.')) {
-      setState(() => _display = _display + '.');
+  // 等号计算逻辑
+  void _onEqualsPressed() {
+    if (_expression.isEmpty || _isCalculated) return;
+
+    try {
+      // 解析并计算算式
+      final formattedExpr = _formatExpression(_expression);
+      final parser = Parser();
+      final exp = parser.parse(formattedExpr);
+      final cm = ContextModel();
+      final double rawResult = exp.evaluate(EvaluationType.REAL, cm);
+
+      // 精度处理后的结果
+      final String result = _formatResult(rawResult);
+
+      // 保存历史记录
+      final history = CalcHistory(
+        expression: _expression,
+        result: result,
+        time: DateTime.now(),
+      );
+      _saveHistory(history);
+
+      // 更新显示
+      setState(() {
+        _displayText = result;
+        _isCalculated = true;
+      });
+    } catch (e) {
+      setState(() {
+        _displayText = '计算错误';
+        _isCalculated = true;
+      });
     }
   }
 
-  void _opPress(String op) {
+  // 清空当前输入
+  void _onClearPressed() {
     setState(() {
-      _first = double.tryParse(_display) ?? 0.0;
-      _op = op;
-      _shouldClear = true;
-      _display = _display + op;
+      _displayText = '';
+      _expression = '';
+      _isCalculated = false;
     });
   }
 
-  void _clear() {
+  // 退格功能
+  void _onBackspacePressed() {
+    if (_expression.isEmpty || _isCalculated) return;
+
     setState(() {
-      _display = '0';
-      _first = null;
-      _op = null;
-      _shouldClear = false;
+      _expression = _expression.substring(0, _expression.length - 1);
+      _displayText = _expression;
     });
   }
 
-  void _equals() {
-    if (_op == null || _first == null) return;
-    final second = double.tryParse(_display) ?? 0.0;
-    double res = 0.0;
-    switch (_op) {
-      case '+':
-        res = _first! + second;
-        break;
-      case '-':
-        res = _first! - second;
-        break;
-      case '×':
-        res = _first! * second;
-        break;
-      case '÷':
-        res = second == 0 ? double.nan : _first! / second;
-        break;
-    }
-    setState(() {
-      _display = res.isNaN ? '错误' : res.toString();
-      _first = null;
-      _op = null;
-      _shouldClear = true;
-    });
-  }
-
-  Widget _button(String label, {Color? color, VoidCallback? onTap}) {
+  // 构建按键
+  Widget _buildButton({
+    required String label,
+    Color textColor = Colors.white,
+    Color bgColor = const Color.fromARGB(255, 135, 135, 135),
+    required VoidCallback onPressed,
+  }) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.all(6.0),
+        padding: const EdgeInsets.all(4.0),
         child: ElevatedButton(
+          onPressed: onPressed,
           style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.symmetric(vertical: 18),
-            backgroundColor: color,
+            backgroundColor: bgColor,
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(20),
           ),
-          onPressed: onTap,
-          child: Text(label, style: TextStyle(fontSize: 18)),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 24, color: textColor),
+          ),
         ),
+      ),
+    );
+  }
+
+  // 构建历史记录面板
+  Widget _buildHistoryPanel() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _showHistory ? MediaQuery.of(context).size.height * 0.4 : 0,
+      child: Column(
+        children: [
+          // 历史记录标题栏
+          Container(
+            height: 50,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            // color: Colors.blue[50],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '计算历史',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: _clearHistory,
+                  child: const Text(
+                    '清空',
+                    style: TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 历史记录列表
+          Expanded(
+            child: _historyList.isEmpty
+                ? const Center(child: Text('暂无记录'))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _historyList.length,
+                    itemBuilder: (context, index) {
+                      final history = _historyList[index];
+                      return Container(
+                        height: 50,
+                        child: ListTile(
+                          title: Text(
+                            '${history.expression} = ${history.result}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            '${history.time.hour.toString().padLeft(2, '0')}:${history.time.minute.toString().padLeft(2, '0')}:${history.time.second.toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
+                          ),
+                          //点击历史记录，回填到输入框
+                          onTap: () {
+                            setState(() {
+                              _expression = history.expression;
+                              _displayText = history.expression;
+                              _isCalculated = false;
+                              _showHistory = false; // 隐藏历史面板
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -737,58 +942,189 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('计算器')),
+      appBar: AppBar(
+        title: const Text('计算器'),
+        actions: [
+          // 历史记录开关按钮
+          IconButton(
+            icon: Icon(_showHistory ? Icons.history_edu : Icons.history),
+            onPressed: () {
+              setState(() {
+                _showHistory = !_showHistory;
+              });
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
+          // 历史记录面板
+          _buildHistoryPanel(),
+          // 显示区域
           Expanded(
             child: Container(
               alignment: Alignment.bottomRight,
-              padding: EdgeInsets.all(16),
-              child: Text(_display, style: TextStyle(fontSize: 36)),
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                _displayText.isEmpty ? '0' : _displayText,
+                style:
+                    const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
+          // 按键区域
+          const Divider(height: 1),
           Column(
             children: [
-              Row(children: [
-                _button('7', onTap: () => _numPress('7')),
-                _button('8', onTap: () => _numPress('8')),
-                _button('9', onTap: () => _numPress('9')),
-                _button('÷', color: Colors.orange, onTap: () => _opPress('÷')),
-              ]),
-              Row(children: [
-                _button('4', onTap: () => _numPress('4')),
-                _button('5', onTap: () => _numPress('5')),
-                _button('6', onTap: () => _numPress('6')),
-                _button('×', color: Colors.orange, onTap: () => _opPress('×')),
-              ]),
-              Row(children: [
-                _button('1', onTap: () => _numPress('1')),
-                _button('2', onTap: () => _numPress('2')),
-                _button('3', onTap: () => _numPress('3')),
-                _button('-', color: Colors.orange, onTap: () => _opPress('-')),
-              ]),
-              Row(children: [
-                _button('0', onTap: () => _numPress('0')),
-                _button('.', onTap: () => _dot()),
-                _button('C', color: Colors.grey, onTap: () => _clear()),
-                _button('+', color: Colors.orange, onTap: () => _opPress('+')),
-              ]),
-              Row(children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                        bottom: 36.0, left: 6.0, right: 6.0),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 18)),
-                      onPressed: _equals,
-                      child: Text('=', style: TextStyle(fontSize: 20)),
+              // 第一行：C、←、%、÷
+              Row(
+                children: [
+                  _buildButton(
+                      label: 'C',
+                      bgColor: Colors.orange,
+                      onPressed: _onClearPressed),
+                  _buildButton(
+                      label: '←',
+                      bgColor: Colors.orange,
+                      onPressed: _onBackspacePressed),
+                  _buildButton(
+                      label: '%',
+                      bgColor: Colors.orange,
+                      onPressed: () => _onButtonPressed('%')),
+                  _buildButton(
+                      label: '÷',
+                      textColor: Colors.white,
+                      bgColor: Colors.orange,
+                      onPressed: () => _onButtonPressed('÷')),
+                ],
+              ),
+              // 第二行：7、8、9、×
+              Row(
+                children: [
+                  _buildButton(
+                      label: '7',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('7')),
+                  _buildButton(
+                      label: '8',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('8')),
+                  _buildButton(
+                      label: '9',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('9')),
+                  _buildButton(
+                      label: '×',
+                      textColor: Colors.white,
+                      bgColor: Colors.orange,
+                      onPressed: () => _onButtonPressed('×')),
+                ],
+              ),
+              // 第三行：4、5、6、-
+              Row(
+                children: [
+                  _buildButton(
+                      label: '4',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('4')),
+                  _buildButton(
+                      label: '5',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('5')),
+                  _buildButton(
+                      label: '6',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('6')),
+                  _buildButton(
+                      label: '-',
+                      textColor: Colors.white,
+                      bgColor: Colors.orange,
+                      onPressed: () => _onButtonPressed('-')),
+                ],
+              ),
+              // 第四行：1、2、3、+
+              Row(
+                children: [
+                  _buildButton(
+                      label: '1',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('1')),
+                  _buildButton(
+                      label: '2',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('2')),
+                  _buildButton(
+                      label: '3',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('3')),
+                  _buildButton(
+                      label: '+',
+                      textColor: Colors.white,
+                      bgColor: Colors.orange,
+                      onPressed: () => _onButtonPressed('+')),
+                ],
+              ),
+              // 第五行：0、.、=
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: ElevatedButton(
+                        onPressed: () => _onButtonPressed('0'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 20, horizontal: 40),
+                        ),
+                        child: Text('0',
+                            style: TextStyle(
+                              fontSize: 24,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSecondaryContainer,
+                            )),
+                      ),
                     ),
                   ),
-                )
-              ])
+                  _buildButton(
+                      label: '.',
+                      textColor:
+                          Theme.of(context).colorScheme.onSecondaryContainer,
+                      bgColor: Theme.of(context).colorScheme.onPrimary,
+                      onPressed: () => _onButtonPressed('.')),
+                  _buildButton(
+                      label: '=',
+                      textColor: Colors.white,
+                      bgColor: Colors.orange,
+                      onPressed: _onEqualsPressed),
+                ],
+              ),
+              SizedBox(height: 30),
             ],
-          )
+          ),
         ],
       ),
     );
