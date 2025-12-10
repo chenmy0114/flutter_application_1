@@ -314,8 +314,10 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               ElevatedButton(
                 onPressed: () {
                   _applyColor(_currentColor());
-                  // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  //     content: Text('已应用颜色 ${_rgbToHex(_r, _g, _b)}')));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('已应用颜色 ${_rgbToHex(_r, _g, _b)}'),
+                    behavior: SnackBarBehavior.floating,
+                  ));
                 },
                 child: Text('应用'),
               )

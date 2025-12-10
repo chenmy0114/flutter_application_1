@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:math' as math;
 import 'db.dart';
 import 'package:provider/provider.dart';
@@ -114,6 +115,91 @@ class _WalletPageState extends State<WalletPage> {
     Future.microtask(_loadData);
   }
 
+  Future<void> _showYearMonthPicker() async {
+    final int startYear = 2020;
+    final int endYear = DateTime.now().year + 5;
+    final years = List.generate(endYear - startYear + 1, (i) => startYear + i);
+    int selYear = _now.year;
+    int selMonth = _now.month;
+
+    final yearController =
+        FixedExtentScrollController(initialItem: selYear - startYear);
+    final monthController =
+        FixedExtentScrollController(initialItem: selMonth - 1);
+
+    final result = await showModalBottomSheet<Map<String, int>>(
+      context: context,
+      backgroundColor: Theme.of(context).canvasColor,
+      builder: (ctx) {
+        return Container(
+          height: 450,
+          padding: EdgeInsets.only(top: 8),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text('取消')),
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx)
+                            .pop({'y': selYear, 'm': selMonth}),
+                        child: Text('确定')),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: yearController,
+                        itemExtent: 55,
+                        onSelectedItemChanged: (i) {
+                          selYear = years[i];
+                        },
+                        children: years
+                            .map((y) => Center(child: Text('$y')))
+                            .toList(),
+                      ),
+                    ),
+                    Expanded(
+                      child: CupertinoPicker(
+                        scrollController: monthController,
+                        itemExtent: 55,
+                        onSelectedItemChanged: (i) {
+                          selMonth = i + 1;
+                        },
+                        children: List.generate(
+                            12, (i) => Center(child: Text('${i + 1}'))),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      isDismissible: true,
+      useRootNavigator: true,
+    );
+
+    if (result != null) {
+      final y = result['y']!;
+      final m = result['m']!;
+      setState(() {
+        _now = DateTime(y, m, 1);
+        _currentPageIndex = _now.year * 12 + (_now.month - 1);
+        _visiblePageIndex = _currentPageIndex;
+      });
+      Future.microtask(_loadData);
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     final year = _now.year;
@@ -187,47 +273,58 @@ class _WalletPageState extends State<WalletPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('钱包总额', style: TextStyle(fontSize: 14)),
-                            Text(
-                              '${_walletTotal >= 0 ? '+' : '-'}${_walletTotal.abs().toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: _walletTotal >= 0
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('总记', style: TextStyle(fontSize: 14)),
+                                  Text(
+                                    '${_walletTotal >= 0 ? '+' : '-'}${_walletTotal.abs().toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _walletTotal >= 0
+                                          ? Colors.green.shade700
+                                          : Colors.red.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('本月总额', style: TextStyle(fontSize: 14)),
-                            Text(
-                              '${_monthTotal >= 0 ? '+' : '-'}${_monthTotal.abs().toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: _monthTotal >= 0
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700,
+                        // SizedBox(width: 8),
+                        Expanded(
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('当月', style: TextStyle(fontSize: 14)),
+                                  Text(
+                                    '${_monthTotal >= 0 ? '+' : '-'}${_monthTotal.abs().toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _monthTotal >= 0
+                                          ? Colors.green.shade700
+                                          : Colors.red.shade700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                     Row(
                       children: [
@@ -237,10 +334,14 @@ class _WalletPageState extends State<WalletPage> {
                           tooltip: '上一月',
                         ),
                         Expanded(
-                          child: Center(
-                            child: Text('${year}年${month}月',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                          child: InkWell(
+                            onTap: _showYearMonthPicker,
+                            child: Center(
+                              child: Text('${year}年${month}月',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                            ),
                           ),
                         ),
                         IconButton(

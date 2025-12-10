@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -183,6 +184,33 @@ class RecordsDatabase {
     db.close();
   }
 
+  /// Export the current database file to [destDir]. Returns the exported file path.
+  Future<String> exportDatabaseToDirectory(String destDir) async {
+    final dbPath = await getDatabasesPath();
+    final dbFile = join(dbPath, 'records.db');
+    final destFile = join(destDir,
+        'records_export_${DateTime.now().toIso8601String().replaceAll(':', '-')}.db');
+    final source = File(dbFile);
+    final dest = File(destFile);
+    await source.copy(dest.path);
+    return dest.path;
+  }
+
+  /// Replace the current database with the provided file at [sourcePath].
+  /// Closes the open database, copies the file into place, and resets internal state.
+  Future<void> replaceDatabaseWithFile(String sourcePath) async {
+    // Close current database if open
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+    final dbPath = await getDatabasesPath();
+    final destPath = join(dbPath, 'records.db');
+    final src = File(sourcePath);
+    await src.copy(destPath);
+    // Next time `.database` getter is accessed, it will reopen the copied DB
+  }
+
   // --- Category helpers ---
   Future<List<Category>> getCategories() async {
     final db = await instance.database;
@@ -252,6 +280,14 @@ class RecordsDatabase {
     final placeholders = List.filled(ids.length, '?').join(',');
     return await db.delete('records',
         where: 'id IN ($placeholders)', whereArgs: ids);
+  }
+
+  Future<int> deleteRecordsForMonth(int year, int month) async {
+    final db = await instance.database;
+    final start = DateTime(year, month, 1).millisecondsSinceEpoch;
+    final end = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
+    return await db.delete('records',
+        where: 'dateTime >= ? AND dateTime < ?', whereArgs: [start, end]);
   }
 
   Future<List<Record>> getRecordsForDay(int year, int month, int day) async {

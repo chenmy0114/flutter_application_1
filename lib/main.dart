@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'dart:io' show Platform;
@@ -88,6 +89,12 @@ class _MyHomePageState extends State<MyHomePage> {
       return Scaffold(
         extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          color: Theme.of(context).colorScheme.background,
+          child: SafeArea(child: page),
+        ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             final model = context.read<RecordsModel>();
@@ -100,12 +107,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     }));
           },
           child: Icon(Icons.add),
-        ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          color: Theme.of(context).colorScheme.background,
-          child: SafeArea(child: page),
         ),
         bottomNavigationBar: BottomAppBar(
           shape: CircularNotchedRectangle(),
@@ -160,9 +161,101 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final recordsModel = context.watch<RecordsModel>();
-    final years =
-        List.generate(DateTime.now().year + 5 - 2020, (i) => 2020 + i);
+    final startYear = 2020;
+    final endYear = DateTime.now().year + 5;
+    final years = List.generate(endYear - startYear + 1, (i) => startYear + i);
     final months = List.generate(12, (i) => i + 1);
+
+    Future<void> _showYearPicker() async {
+      int sel = recordsModel.selectedYear;
+      final controller =
+          FixedExtentScrollController(initialItem: sel - startYear);
+      final res = await showModalBottomSheet<int>(
+        context: context,
+        builder: (ctx) {
+          return Container(
+            height: 450,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: Text('取消')),
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(sel),
+                          child: Text('确定')),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: controller,
+                    itemExtent: 55,
+                    onSelectedItemChanged: (i) => sel = years[i],
+                    children:
+                        years.map((y) => Center(child: Text('$y'))).toList(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (res != null) {
+        if (recordsModel.isYearView) {
+          await recordsModel.loadYearSummaries(res);
+        } else {
+          await recordsModel.loadForMonth(res, recordsModel.selectedMonth);
+        }
+      }
+    }
+
+    Future<void> _showMonthPicker() async {
+      int sel = recordsModel.selectedMonth;
+      final controller = FixedExtentScrollController(initialItem: sel - 1);
+      final res = await showModalBottomSheet<int>(
+        context: context,
+        builder: (ctx) {
+          return Container(
+            height: 450,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: Text('取消')),
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(sel),
+                          child: Text('确定')),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController: controller,
+                    itemExtent: 55,
+                    onSelectedItemChanged: (i) => sel = i + 1,
+                    children:
+                        months.map((m) => Center(child: Text('$m'))).toList(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (res != null) {
+        await recordsModel.loadForMonth(recordsModel.selectedYear, res);
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -171,22 +264,19 @@ class _HomePageState extends State<HomePage> {
         children: [
           Row(
             children: [
-              DropdownButton<int>(
-                value: recordsModel.selectedYear,
-                items: years
-                    .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) {
-                    if (recordsModel.isYearView) {
-                      recordsModel.loadYearSummaries(v);
-                    } else {
-                      recordsModel.loadForMonth(v, recordsModel.selectedMonth);
-                    }
-                  }
-                },
+              GestureDetector(
+                onTap: _showYearPicker,
+                child: Card(
+                  color: Theme.of(context).colorScheme.surface,
+                  elevation: 1,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text('${recordsModel.selectedYear}'),
+                  ),
+                ),
               ),
-              SizedBox(width: 12),
+              // SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   if (!recordsModel.isYearView) {
@@ -210,7 +300,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              SizedBox(width: 8),
+              // SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   if (recordsModel.isYearView) {
@@ -234,21 +324,32 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              SizedBox(width: 12),
+              // SizedBox(width: 8),
               if (!recordsModel.isYearView) ...[
-                DropdownButton<int>(
-                  value: recordsModel.selectedMonth,
-                  items: months
-                      .map((m) =>
-                          DropdownMenuItem(value: m, child: Text('$m 月')))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v != null) {
-                      recordsModel.loadForMonth(recordsModel.selectedYear, v);
-                    }
+                GestureDetector(
+                  onTap: _showMonthPicker,
+                  child: Card(
+                    color: Theme.of(context).colorScheme.surface,
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      child: Text('${recordsModel.selectedMonth}'),
+                    ),
+                  ),
+                ),
+              ],
+              Spacer(),
+              GestureDetector(
+                child: IconButton(
+                  tooltip: '计算器',
+                  icon: Icon(Icons.calculate),
+                  onPressed: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => SimpleCalculatorPage()));
                   },
                 ),
-              ]
+              ),
             ],
           ),
           SizedBox(height: 12),
@@ -272,6 +373,43 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       recordsModel.setYearView(false).then((_) => recordsModel
                           .loadForMonth(recordsModel.selectedYear, m));
+                    },
+                    onLongPress: () async {
+                      final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                                title: Text('删除整月记录'),
+                                content: Text(
+                                    '确定要删除 ${recordsModel.selectedYear} 年 ${m} 月的所有记录吗？此操作不可撤销。'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(false),
+                                      child: Text('取消')),
+                                  ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      child: Text('删除'))
+                                ],
+                              ));
+                      if (confirmed == true) {
+                        try {
+                          await RecordsDatabase.instance.deleteRecordsForMonth(
+                              recordsModel.selectedYear, m);
+                          await recordsModel
+                              .loadYearSummaries(recordsModel.selectedYear);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                '已删除 ${recordsModel.selectedYear} 年 ${m} 月的记录'),
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('删除失败：$e'),
+                            behavior: SnackBarBehavior.floating,
+                          ));
+                        }
+                      }
                     },
                   );
                 }).toList(),
@@ -400,15 +538,67 @@ class _AddRecordDialogState extends State<AddRecordDialog> {
                           '${_dt.year}年${_dt.month}月${_dt.day}日 ${_dt.hour.toString().padLeft(2, '0')}时${_dt.minute.toString().padLeft(2, '0')}分'))
                 ],
               ),
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: InputDecoration(labelText: '记账分类'),
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedCategory = v);
+              GestureDetector(
+                onTap: () async {
+                  if (_categories.isEmpty) return;
+                  int sel = _selectedCategory != null
+                      ? _categories.indexOf(_selectedCategory!)
+                      : 0;
+                  final controller = FixedExtentScrollController(
+                      initialItem: sel < 0 ? 0 : sel);
+                  final res = await showModalBottomSheet<int>(
+                    context: context,
+                    builder: (ctx) {
+                      return Container(
+                        height: 450,
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                      child: Text('取消')),
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(sel),
+                                      child: Text('确定')),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: CupertinoPicker(
+                                scrollController: controller,
+                                itemExtent: 55,
+                                onSelectedItemChanged: (i) => sel = i,
+                                children: _categories
+                                    .map((c) => Center(child: Text(c)))
+                                    .toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                  if (res != null && res >= 0 && res < _categories.length) {
+                    setState(() => _selectedCategory = _categories[res]);
+                  }
                 },
+                child: InputDecorator(
+                  decoration: InputDecoration(labelText: '记账分类'),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_selectedCategory ?? '请选择'),
+                      // Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
               ),
               Row(
                 children: [
@@ -450,6 +640,156 @@ class _AddRecordDialogState extends State<AddRecordDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Simple calculator page
+class SimpleCalculatorPage extends StatefulWidget {
+  @override
+  State<SimpleCalculatorPage> createState() => _SimpleCalculatorPageState();
+}
+
+class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
+  String _display = '0';
+  double? _first;
+  String? _op;
+  bool _shouldClear = false;
+
+  void _numPress(String s) {
+    setState(() {
+      if (_shouldClear || _display == '0') {
+        _display = s;
+        _shouldClear = false;
+      } else {
+        _display = _display + s;
+      }
+    });
+  }
+
+  void _dot() {
+    if (!_display.contains('.')) {
+      setState(() => _display = _display + '.');
+    }
+  }
+
+  void _opPress(String op) {
+    setState(() {
+      _first = double.tryParse(_display) ?? 0.0;
+      _op = op;
+      _shouldClear = true;
+      _display = _display + op;
+    });
+  }
+
+  void _clear() {
+    setState(() {
+      _display = '0';
+      _first = null;
+      _op = null;
+      _shouldClear = false;
+    });
+  }
+
+  void _equals() {
+    if (_op == null || _first == null) return;
+    final second = double.tryParse(_display) ?? 0.0;
+    double res = 0.0;
+    switch (_op) {
+      case '+':
+        res = _first! + second;
+        break;
+      case '-':
+        res = _first! - second;
+        break;
+      case '×':
+        res = _first! * second;
+        break;
+      case '÷':
+        res = second == 0 ? double.nan : _first! / second;
+        break;
+    }
+    setState(() {
+      _display = res.isNaN ? '错误' : res.toString();
+      _first = null;
+      _op = null;
+      _shouldClear = true;
+    });
+  }
+
+  Widget _button(String label, {Color? color, VoidCallback? onTap}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(6.0),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            backgroundColor: color,
+          ),
+          onPressed: onTap,
+          child: Text(label, style: TextStyle(fontSize: 18)),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('计算器')),
+      body: Column(
+        children: [
+          Expanded(
+            child: Container(
+              alignment: Alignment.bottomRight,
+              padding: EdgeInsets.all(16),
+              child: Text(_display, style: TextStyle(fontSize: 36)),
+            ),
+          ),
+          Column(
+            children: [
+              Row(children: [
+                _button('7', onTap: () => _numPress('7')),
+                _button('8', onTap: () => _numPress('8')),
+                _button('9', onTap: () => _numPress('9')),
+                _button('÷', color: Colors.orange, onTap: () => _opPress('÷')),
+              ]),
+              Row(children: [
+                _button('4', onTap: () => _numPress('4')),
+                _button('5', onTap: () => _numPress('5')),
+                _button('6', onTap: () => _numPress('6')),
+                _button('×', color: Colors.orange, onTap: () => _opPress('×')),
+              ]),
+              Row(children: [
+                _button('1', onTap: () => _numPress('1')),
+                _button('2', onTap: () => _numPress('2')),
+                _button('3', onTap: () => _numPress('3')),
+                _button('-', color: Colors.orange, onTap: () => _opPress('-')),
+              ]),
+              Row(children: [
+                _button('0', onTap: () => _numPress('0')),
+                _button('.', onTap: () => _dot()),
+                _button('C', color: Colors.grey, onTap: () => _clear()),
+                _button('+', color: Colors.orange, onTap: () => _opPress('+')),
+              ]),
+              Row(children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                        bottom: 36.0, left: 6.0, right: 6.0),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 18)),
+                      onPressed: _equals,
+                      child: Text('=', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                )
+              ])
+            ],
+          )
+        ],
       ),
     );
   }

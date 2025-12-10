@@ -29,6 +29,26 @@ class _MonthDetailListState extends State<MonthDetailList> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
                 children: [
+                  // Checkbox to toggle select-all
+                  Checkbox(
+                    value: selectedIds.isNotEmpty &&
+                        selectedIds.length ==
+                            records.where((r) => r.id != null).length,
+                    onChanged: (v) {
+                      setState(() {
+                        final ids = records
+                            .where((r) => r.id != null)
+                            .map((r) => r.id!)
+                            .toSet();
+                        if (v == true) {
+                          selectedIds = ids;
+                        } else {
+                          selectedIds.clear();
+                        }
+                      });
+                    },
+                  ),
+                  SizedBox(width: 8),
                   Text('已选 ${selectedIds.length} 项'),
                   Spacer(),
                   ElevatedButton.icon(
