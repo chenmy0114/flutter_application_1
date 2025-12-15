@@ -3,6 +3,7 @@ import 'db.dart';
 import 'models/category.dart';
 import 'app_state.dart';
 import 'package:provider/provider.dart';
+import 'import_export_page.dart';
 
 /// Settings landing page: lists available settings items.
 class SettingsPage extends StatelessWidget {
@@ -32,7 +33,16 @@ class SettingsPage extends StatelessWidget {
                   .push(MaterialPageRoute(builder: (_) => ThemeSettingsPage()));
             },
           ),
-          // Add more settings items here in the future
+          ListTile(
+            title: Text('数据导入导出'),
+            subtitle: Text('加密备份/恢复记账数据'),
+            trailing: Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => ImportExportPage()));
+            },
+          ),
+          // ImportExportPage Add more settings items here in the future
         ],
       ),
     );

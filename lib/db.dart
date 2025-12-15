@@ -12,6 +12,8 @@ class RecordsDatabase {
 
   static Database? _database;
 
+  static const String tableRecords = "records";
+
   RecordsDatabase._init();
 
   Future<Database> get database async {
@@ -373,5 +375,37 @@ class RecordsDatabase {
         whereArgs: [start, end, category, isIncome ? 1 : 0],
         orderBy: 'dateTime DESC');
     return maps.map((m) => Record.fromMap(m)).toList();
+  }
+
+  // 导出所有数据
+  Future<Map<String, dynamic>> exportAllData() async {
+    final db = await database;
+
+    // 查询记录表数据
+    final records = await db.query(tableRecords);
+
+    return {
+      "records": records,
+      "export_time": DateTime.now().toIso8601String(), // 导出时间
+      "version": "1.0" // 数据版本
+    };
+  }
+
+  // 导入数据（先清空旧数据，再插入新数据）
+  Future<void> importData(Map<String, dynamic> data) async {
+    final db = await database;
+    final batch = db.batch();
+
+    // 清空现有数据（可根据需求改为增量导入）
+    batch.delete(tableRecords);
+
+    // 插入记录数据
+    List<Map<String, dynamic>> records = List.from(data["records"]);
+    for (var item in records) {
+      item.remove("id"); // 移除自增ID
+      batch.insert(tableRecords, item);
+    }
+
+    await batch.commit(noResult: true);
   }
 }

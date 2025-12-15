@@ -23,7 +23,12 @@ dependencies:
   sqflite_common_ffi: ^2.2.0
   fl_chart: ^1.1.1
   shared_preferences: ^2.1.1
-
+  math_expressions: ^2.4.0  # 算式解析
+  decimal: ^2.3.3           # 精度处理
+  encrypt: ^5.0.1
+  clipboard: ^3.0.8
+  crypto: ^3.0.3  # 用于生成加密密钥
+  convert: ^3.1.1 # 数据格式转换
 dev_dependencies:
   flutter_test:
     sdk: flutter
