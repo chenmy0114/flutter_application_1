@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:math'; // 新增：导入Random所需的库
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart';
-import 'package:crypto/crypto.dart';
+// import 'package:crypto/crypto.dart';
 
 class EncryptionUtils {
   // 加密密钥（建议改为从安全存储读取，此处为示例）
@@ -11,6 +11,7 @@ class EncryptionUtils {
   // 获取加密配置
   static Encrypter _getEncrypter() {
     final key = Key.fromUtf8(_secretKey);
+    // ignore: unused_local_variable
     final iv = IV.fromLength(16); // 初始化向量
     return Encrypter(AES(key, mode: AESMode.cbc));
   }

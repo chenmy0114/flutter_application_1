@@ -264,7 +264,7 @@ class _ImportExportPageState extends State<ImportExportPage> {
                       //backgroundColor: Colors.green,
                       //foregroundColor: Colors.white,
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
                       ),
                     ),
                     child: _isLoading
@@ -287,7 +287,7 @@ class _ImportExportPageState extends State<ImportExportPage> {
                       //backgroundColor: Colors.blue,
                       //foregroundColor: Colors.white,
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
                       ),
                     ),
                     child: _isLoading

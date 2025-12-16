@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:math' as math;
+// import 'dart:math' as math;
 import 'db.dart';
 import 'package:provider/provider.dart';
 import 'models/records_model.dart';
@@ -10,28 +10,28 @@ import 'package:fl_chart/fl_chart.dart';
 
 // Custom ScrollPhysics that prevents flinging across more than one page at a time.
 // This avoids skipping months when the user swipes quickly.
-class _OnePageScrollPhysics extends PageScrollPhysics {
-  const _OnePageScrollPhysics({ScrollPhysics? parent}) : super(parent: parent);
+// class _OnePageScrollPhysics extends PageScrollPhysics {
+//   const _OnePageScrollPhysics({ScrollPhysics? parent}) : super(parent: parent);
 
-  @override
-  PageScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return _OnePageScrollPhysics(parent: buildParent(ancestor));
-  }
+//   @override
+//   PageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+//     return _OnePageScrollPhysics(parent: buildParent(ancestor));
+//   }
 
-  @override
-  double getTargetPixels(ScrollMetrics position, double velocity) {
-    final double page = position.pixels / position.viewportDimension;
-    double targetPage;
-    if (velocity.abs() < 0.5) {
-      targetPage = page.roundToDouble();
-    } else {
-      targetPage = velocity > 0 ? page.ceilToDouble() : page.floorToDouble();
-    }
-    final double clampedPage =
-        math.max(page - 1, math.min(page + 1, targetPage));
-    return clampedPage * position.viewportDimension;
-  }
-}
+//   @override
+//   double getTargetPixels(ScrollMetrics position, double velocity) {
+//     final double page = position.pixels / position.viewportDimension;
+//     double targetPage;
+//     if (velocity.abs() < 0.5) {
+//       targetPage = page.roundToDouble();
+//     } else {
+//       targetPage = velocity > 0 ? page.ceilToDouble() : page.floorToDouble();
+//     }
+//     final double clampedPage =
+//         math.max(page - 1, math.min(page + 1, targetPage));
+//     return clampedPage * position.viewportDimension;
+//   }
+// }
 
 class WalletPage extends StatefulWidget {
   const WalletPage({super.key});
@@ -277,6 +277,12 @@ class _WalletPageState extends State<WalletPage> {
                       children: [
                         Expanded(
                           child: Card(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(25),
+                                    bottomLeft: Radius.circular(25),
+                                    topRight: Radius.circular(0),
+                                    bottomRight: Radius.circular(0))),
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Row(
@@ -302,6 +308,12 @@ class _WalletPageState extends State<WalletPage> {
                         // SizedBox(width: 8),
                         Expanded(
                           child: Card(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(0),
+                                    bottomLeft: Radius.circular(0),
+                                    topRight: Radius.circular(25),
+                                    bottomRight: Radius.circular(25))),
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
                               child: Row(
@@ -376,6 +388,9 @@ class _WalletPageState extends State<WalletPage> {
                   .push(MaterialPageRoute(builder: (_) => SettingsPage()));
             },
             child: Icon(Icons.settings),
+            shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(30))),
+            backgroundColor: Theme.of(context).colorScheme.onPrimary,
           ),
         ),
       ],
@@ -432,7 +447,7 @@ class _WalletPageState extends State<WalletPage> {
                       color: (income != 0 || expense != 0)
                           ? bgColor
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(25),
                     ),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
@@ -442,7 +457,7 @@ class _WalletPageState extends State<WalletPage> {
                               '${positive ? '+' : '-'}¥${net.abs().toStringAsFixed(2)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: textColor, fontSize: 12),
+                              style: TextStyle(color: textColor, fontSize: 11),
                             )
                           : SizedBox(width: 48, height: 14),
                     ),
@@ -464,6 +479,8 @@ class _WalletPageState extends State<WalletPage> {
   Widget _buildStatsArea() {
     // small pie chart placeholder and list
     return Card(
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(25))),
       margin: EdgeInsets.all(8),
       child: Padding(
         padding: EdgeInsets.all(12),
@@ -473,21 +490,45 @@ class _WalletPageState extends State<WalletPage> {
             Row(
               children: [
                 ToggleButtons(
+                  constraints:
+                      const BoxConstraints(minHeight: 35, minWidth: 35),
+                  borderRadius: BorderRadius.all(Radius.circular(25)),
                   isSelected: [_viewYear, !_viewYear],
                   onPressed: (i) async {
                     setState(() => _viewYear = (i == 0));
                     await _loadStats();
                   },
-                  children: [Text('年'), Text('月')],
+                  children: [
+                    Text(
+                      '年',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    Text(
+                      '月',
+                      style: TextStyle(fontSize: 13),
+                    )
+                  ],
                 ),
                 SizedBox(width: 8),
                 ToggleButtons(
+                  constraints:
+                      const BoxConstraints(minHeight: 35, minWidth: 35),
+                  borderRadius: BorderRadius.all(Radius.circular(25)),
                   isSelected: [_showIncome, !_showIncome],
                   onPressed: (i) async {
                     setState(() => _showIncome = (i == 0));
                     await _loadStats();
                   },
-                  children: [Text('收入'), Text('支出')],
+                  children: [
+                    Text(
+                      '收',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    Text(
+                      '支',
+                      style: TextStyle(fontSize: 13),
+                    )
+                  ],
                 ),
                 Spacer(),
                 Text(

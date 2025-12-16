@@ -110,6 +110,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     }));
           },
           child: Icon(Icons.add),
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(30))),
         ),
         bottomNavigationBar: BottomAppBar(
           shape: CircularNotchedRectangle(),
@@ -267,18 +269,6 @@ class _HomePageState extends State<HomePage> {
         children: [
           Row(
             children: [
-              GestureDetector(
-                onTap: _showYearPicker,
-                child: Card(
-                  color: Theme.of(context).colorScheme.surface,
-                  elevation: 1,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Text('${recordsModel.selectedYear}'),
-                  ),
-                ),
-              ),
               // SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
@@ -287,6 +277,8 @@ class _HomePageState extends State<HomePage> {
                   }
                 },
                 child: Card(
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(30))),
                   color: recordsModel.isYearView
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.surface,
@@ -311,6 +303,8 @@ class _HomePageState extends State<HomePage> {
                   }
                 },
                 child: Card(
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(30))),
                   color: !recordsModel.isYearView
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.surface,
@@ -327,11 +321,27 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
+              GestureDetector(
+                onTap: _showYearPicker,
+                child: Card(
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(30))),
+                  color: Theme.of(context).colorScheme.surface,
+                  elevation: 1,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text('${recordsModel.selectedYear}'),
+                  ),
+                ),
+              ),
               // SizedBox(width: 8),
               if (!recordsModel.isYearView) ...[
                 GestureDetector(
                   onTap: _showMonthPicker,
                   child: Card(
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(30))),
                     color: Theme.of(context).colorScheme.surface,
                     elevation: 1,
                     child: Padding(
@@ -427,6 +437,8 @@ class _HomePageState extends State<HomePage> {
                 if (!snap.hasData) return CircularProgressIndicator();
                 final sum = snap.data!;
                 return Card(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(25))),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Row(
@@ -691,6 +703,7 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
   bool _isCalculated = false; // 是否计算完成
   List<CalcHistory> _historyList = []; // 历史记录列表
   bool _showHistory = false; // 是否显示历史记录面板
+  double _fontSize = 48;
 
   // 初始化：加载本地历史记录
   @override
@@ -772,11 +785,13 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
         if (['+', '-', '×', '÷'].contains(value)) {
           _expression = _displayText + value; // 结果+新运算符
           _displayText = _expression;
+          _adjustFontSize();
           _isCalculated = false;
         } else {
           // 计算完成后点击数字，清空重新输入
           _expression = value;
           _displayText = value;
+          _adjustFontSize();
           _isCalculated = false;
         }
       } else {
@@ -785,6 +800,7 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
         // 拼接算式
         _expression += value;
         _displayText = _expression;
+        _adjustFontSize();
       }
     });
   }
@@ -815,6 +831,7 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
       // 更新显示
       setState(() {
         _displayText = result;
+        _adjustFontSize();
         _isCalculated = true;
       });
     } catch (e) {
@@ -829,6 +846,7 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
   void _onClearPressed() {
     setState(() {
       _displayText = '';
+      _adjustFontSize();
       _expression = '';
       _isCalculated = false;
     });
@@ -841,6 +859,23 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
     setState(() {
       _expression = _expression.substring(0, _expression.length - 1);
       _displayText = _expression;
+      _adjustFontSize();
+    });
+  }
+
+  void _adjustFontSize() {
+    setState(() {
+      if (_displayText.length <= 12) {
+        _fontSize = 48;
+      } else if (_displayText.length <= 16) {
+        _fontSize = 36;
+      } else if (_displayText.length <= 24) {
+        _fontSize = 24;
+      } else if (_displayText.length <= 28) {
+        _fontSize = 20;
+      } else {
+        _fontSize = 16;
+      }
     });
   }
 
@@ -968,7 +1003,7 @@ class _SimpleCalculatorPageState extends State<SimpleCalculatorPage> {
               child: Text(
                 _displayText.isEmpty ? '0' : _displayText,
                 style:
-                    const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                    TextStyle(fontSize: _fontSize, fontWeight: FontWeight.bold),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
