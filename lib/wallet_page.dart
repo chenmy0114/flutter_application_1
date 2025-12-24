@@ -390,7 +390,7 @@ class _WalletPageState extends State<WalletPage> {
             child: Icon(Icons.settings),
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(30))),
-            backgroundColor: Theme.of(context).colorScheme.onPrimary,
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           ),
         ),
       ],
@@ -444,20 +444,44 @@ class _WalletPageState extends State<WalletPage> {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: (income != 0 || expense != 0)
-                          ? bgColor
+                      color: (income != 0)
+                          ? Colors.green.shade100
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.center,
-                      child: (income != 0 || expense != 0)
+                      child: (income != 0)
                           ? Text(
-                              '${positive ? '+' : '-'}¥${net.abs().toStringAsFixed(2)}',
+                              '${'+'}¥${income.abs().toStringAsFixed(2)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: textColor, fontSize: 11),
+                              style: TextStyle(
+                                  color: Colors.green.shade900, fontSize: 11),
+                            )
+                          : SizedBox(width: 48, height: 14),
+                    ),
+                  ),
+                  SizedBox(height: 1),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (expense != 0)
+                          ? Colors.red.shade100
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: (expense != 0)
+                          ? Text(
+                              '${'-'}¥${expense.abs().toStringAsFixed(2)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Colors.red.shade900, fontSize: 11),
                             )
                           : SizedBox(width: 48, height: 14),
                     ),
@@ -678,12 +702,34 @@ class _WalletPageState extends State<WalletPage> {
     final records =
         await RecordsDatabase.instance.getRecordsForDay(year, month, day);
     if (!mounted) return;
-
+    double sum = 0.0;
+    for (var r in records) {
+      if (r.isIncome) {
+        sum += r.amount;
+      } else {
+        sum -= r.amount;
+      }
+    }
     await showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('$year年$month月$day日 - 记录'),
+          title: Row(
+            children: [
+              Text(
+                '$year年$month月$day日记录',
+                style: TextStyle(fontSize: 16),
+              ),
+              Spacer(),
+              Text('${sum >= 0 ? '+' : '-'}¥${sum.abs().toStringAsFixed(2)}',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: sum >= 0
+                          ? Colors.green.shade700
+                          : Colors.red.shade700)),
+            ],
+          ),
           content: SizedBox(
             width: double.maxFinite,
             height: 320,

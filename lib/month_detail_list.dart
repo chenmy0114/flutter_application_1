@@ -30,67 +30,70 @@ class _MonthDetailListState extends State<MonthDetailList> {
             floating: false,
             delegate: _SelectionHeaderDelegate(
               // 把原来SliverToBoxAdapter的child内容传入
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  children: [
-                    // Checkbox to toggle select-all
-                    Checkbox(
-                      value: selectedIds.isNotEmpty &&
-                          selectedIds.length ==
-                              records.where((r) => r.id != null).length,
-                      onChanged: (v) {
-                        setState(() {
-                          final ids = records
-                              .where((r) => r.id != null)
-                              .map((r) => r.id!)
-                              .toSet();
-                          if (v == true) {
-                            selectedIds = ids;
-                          } else {
-                            selectedIds.clear();
-                          }
-                        });
-                      },
-                    ),
-                    SizedBox(width: 8),
-                    Text('已选 ${selectedIds.length} 项'),
-                    Spacer(),
-                    ElevatedButton.icon(
-                      icon: Icon(Icons.delete),
-                      label: Text('删除'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).colorScheme.onPrimary),
-                      onPressed: selectedIds.isEmpty
-                          ? null
-                          : () async {
-                              final ids = selectedIds.toList();
-                              try {
-                                await RecordsDatabase.instance
-                                    .deleteRecords(ids);
-                              } catch (e, st) {
-                                // ignore: avoid_print
-                                print('Batch delete failed: $e\n$st');
-                              }
+              child: Container(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    children: [
+                      // Checkbox to toggle select-all
+                      Checkbox(
+                        value: selectedIds.isNotEmpty &&
+                            selectedIds.length ==
+                                records.where((r) => r.id != null).length,
+                        onChanged: (v) {
+                          setState(() {
+                            final ids = records
+                                .where((r) => r.id != null)
+                                .map((r) => r.id!)
+                                .toSet();
+                            if (v == true) {
+                              selectedIds = ids;
+                            } else {
                               selectedIds.clear();
-                              selectionMode = false;
-                              await recordsModel.loadForMonth(
-                                  recordsModel.selectedYear,
-                                  recordsModel.selectedMonth);
-                              setState(() {});
-                            },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close),
-                      onPressed: () {
-                        setState(() {
-                          selectionMode = false;
-                          selectedIds.clear();
-                        });
-                      },
-                    )
-                  ],
+                            }
+                          });
+                        },
+                      ),
+                      SizedBox(width: 8),
+                      Text('已选 ${selectedIds.length} 项'),
+                      Spacer(),
+                      ElevatedButton.icon(
+                        icon: Icon(Icons.delete),
+                        label: Text('删除'),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).scaffoldBackgroundColor),
+                        onPressed: selectedIds.isEmpty
+                            ? null
+                            : () async {
+                                final ids = selectedIds.toList();
+                                try {
+                                  await RecordsDatabase.instance
+                                      .deleteRecords(ids);
+                                } catch (e, st) {
+                                  // ignore: avoid_print
+                                  print('Batch delete failed: $e\n$st');
+                                }
+                                selectedIds.clear();
+                                selectionMode = false;
+                                await recordsModel.loadForMonth(
+                                    recordsModel.selectedYear,
+                                    recordsModel.selectedMonth);
+                                setState(() {});
+                              },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close),
+                        onPressed: () {
+                          setState(() {
+                            selectionMode = false;
+                            selectedIds.clear();
+                          });
+                        },
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),

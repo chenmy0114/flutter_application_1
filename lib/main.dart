@@ -367,6 +367,57 @@ class _HomePageState extends State<HomePage> {
           ),
           SizedBox(height: 12),
           if (recordsModel.isYearView) ...[
+            FutureBuilder<Map<String, double>>(
+              future: RecordsDatabase.instance
+                  .getYearSummary(recordsModel.selectedYear),
+              builder: (context, snap) {
+                if (!snap.hasData) return CircularProgressIndicator();
+                final sum = snap.data!;
+                final income = sum['income'] ?? 0.0;
+                final expense = sum['expense'] ?? 0.0;
+                final net = income - expense;
+                final positive = net >= 0;
+                final textColor = positive ? Colors.green : Colors.red;
+                return Card(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(25))),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${recordsModel.selectedYear}',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (positive) ...[
+                              Text('净收入: ¥${net.abs().toStringAsFixed(2)}',
+                                  style: TextStyle(color: textColor)),
+                            ] else ...[
+                              Text('净支出: ¥${net.abs().toStringAsFixed(2)}',
+                                  style: TextStyle(color: textColor)),
+                            ],
+                            Row(
+                              children: [
+                                Text(
+                                    '收入: ¥${sum['income']!.toStringAsFixed(2)}'),
+                                SizedBox(width: 16),
+                                Text(
+                                    '支出: ¥${sum['expense']!.toStringAsFixed(2)}'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            SizedBox(height: 12),
+
             // 只显示有数据的月份，并按月份倒序排列
             Expanded(
               child: ListView(
@@ -436,6 +487,11 @@ class _HomePageState extends State<HomePage> {
               builder: (context, snap) {
                 if (!snap.hasData) return CircularProgressIndicator();
                 final sum = snap.data!;
+                final income = sum['income'] ?? 0.0;
+                final expense = sum['expense'] ?? 0.0;
+                final net = income - expense;
+                final positive = net >= 0;
+                final textColor = positive ? Colors.green : Colors.red;
                 return Card(
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.circular(25))),
@@ -451,10 +507,22 @@ class _HomePageState extends State<HomePage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('收入: ¥${sum['income']!.toStringAsFixed(2)}',
-                                style: TextStyle(color: Colors.green)),
-                            Text('支出: ¥${sum['expense']!.toStringAsFixed(2)}',
-                                style: TextStyle(color: Colors.red)),
+                            if (positive) ...[
+                              Text('净收入: ¥${net.abs().toStringAsFixed(2)}',
+                                  style: TextStyle(color: textColor)),
+                            ] else ...[
+                              Text('净支出: ¥${net.abs().toStringAsFixed(2)}',
+                                  style: TextStyle(color: textColor)),
+                            ],
+                            Row(
+                              children: [
+                                Text(
+                                    '收入: ¥${sum['income']!.toStringAsFixed(2)}'),
+                                SizedBox(width: 16),
+                                Text(
+                                    '支出: ¥${sum['expense']!.toStringAsFixed(2)}'),
+                              ],
+                            ),
                           ],
                         ),
                       ],

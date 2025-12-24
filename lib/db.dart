@@ -119,12 +119,40 @@ class RecordsDatabase {
     return {'income': income, 'expense': expense};
   }
 
+  Future<List<Record>> getRecordsForYear(int year) async {
+    final db = await instance.database;
+    final start = DateTime(year, 1, 1);
+    final end = DateTime(year + 1, 1 + 1, 1);
+    final maps = await db.query(
+      'records',
+      where: 'dateTime >= ? AND dateTime < ?',
+      whereArgs: [start.millisecondsSinceEpoch, end.millisecondsSinceEpoch],
+      orderBy: 'dateTime DESC',
+    );
+    return maps.map((m) => Record.fromMap(m)).toList();
+  }
+
+  Future<Map<String, double>> getYearSummary(int year) async {
+    final rows = await getRecordsForYear(year);
+    double income = 0;
+    double expense = 0;
+    for (var r in rows) {
+      if (r.isIncome) {
+        income += r.amount;
+      } else {
+        expense += r.amount;
+      }
+    }
+    return {'income': income, 'expense': expense};
+  }
+
   Future<Map<int, Map<String, double>>> getYearSummaries(int year) async {
     final db = await instance.database;
     final start = DateTime(year, 1, 1).millisecondsSinceEpoch;
     final end = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
+    final offsetHours = DateTime.now().timeZoneOffset.inHours;
     final result = await db.rawQuery('''
-      SELECT strftime('%m', datetime(dateTime/1000, 'unixepoch')) AS month,
+      SELECT strftime('%m', datetime(dateTime/1000, 'unixepoch', '+${offsetHours} hours')) AS month,
              SUM(CASE WHEN isIncome = 1 THEN amount ELSE 0 END) AS income,
              SUM(CASE WHEN isIncome = 0 THEN amount ELSE 0 END) AS expense
       FROM records
@@ -149,8 +177,9 @@ class RecordsDatabase {
     final db = await instance.database;
     final start = DateTime(year, month, 1).millisecondsSinceEpoch;
     final end = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
+    final offsetHours = DateTime.now().timeZoneOffset.inHours;
     final result = await db.rawQuery('''
-      SELECT strftime('%d', datetime(dateTime/1000, 'unixepoch')) AS day,
+      SELECT strftime('%d', datetime(dateTime/1000, 'unixepoch', '+${offsetHours} hours')) AS day,
              SUM(CASE WHEN isIncome = 1 THEN amount ELSE 0 END) AS income,
              SUM(CASE WHEN isIncome = 0 THEN amount ELSE 0 END) AS expense
       FROM records
