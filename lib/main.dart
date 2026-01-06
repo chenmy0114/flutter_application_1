@@ -16,6 +16,7 @@ import 'models/record.dart';
 import 'models/records_model.dart';
 import 'month_detail_list.dart';
 import 'wallet_page.dart';
+import 'empty_page.dart';
 
 void main() {
   // Initialize sqflite ffi for desktop platforms (Windows/Linux/macOS).
@@ -137,12 +138,12 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class EmptyPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('页面暂未实现'));
-  }
-}
+// class EmptyPage extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return Center(child: Text('页面暂未实现'));
+//   }
+// }
 
 class HomePage extends StatefulWidget {
   @override
@@ -354,13 +355,25 @@ class _HomePageState extends State<HomePage> {
               ],
               Spacer(),
               GestureDetector(
-                child: IconButton(
-                  tooltip: '计算器',
-                  icon: Icon(Icons.calculate),
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => SimpleCalculatorPage()));
-                  },
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: '详情查询',
+                      icon: Icon(Icons.search),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => EmptyPage()));
+                      },
+                    ),
+                    IconButton(
+                      tooltip: '计算器',
+                      icon: Icon(Icons.calculate),
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => SimpleCalculatorPage()));
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -437,4 +437,60 @@ class RecordsDatabase {
 
     await batch.commit(noResult: true);
   }
+
+  Future<Map<String, double>> getRecordsInDateRange(
+      DateTime start, DateTime end) async {
+    final db = await database;
+
+    // 构建查询条件：日期 >= 起始时间 且 日期 <= 结束时间
+    final startTimestamp =
+        DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endTimestamp =
+        DateTime(end.year, end.month + 1, end.day).millisecondsSinceEpoch;
+    // 查询收入总和
+    final incomeResult = await db.rawQuery('''
+      SELECT SUM(amount) as total FROM records 
+      WHERE dateTime >= ? AND dateTime <= ? AND isIncome = 1
+    ''', [startTimestamp, endTimestamp]);
+
+    // 查询支出总和
+    final expenseResult = await db.rawQuery('''
+      SELECT SUM(amount) as total FROM records 
+      WHERE dateTime >= ? AND dateTime <= ? AND isIncome = 0
+    ''', [startTimestamp, endTimestamp]);
+
+    final income = incomeResult.first['total'] as double? ?? 0.0;
+    final expense = expenseResult.first['total'] as double? ?? 0.0;
+
+    return {'income': income, 'expense': expense};
+  }
+
+  /// 查询指定时间段内的所有记账记录
+  Future<List<Record>> getRecordListInDateRange(
+      DateTime start, DateTime end) async {
+    final db = await database;
+
+    final startTimestamp =
+        DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endTimestamp =
+        DateTime(end.year, end.month + 1, end.day).millisecondsSinceEpoch;
+    final maps = await db.query(
+      'records',
+      where: 'dateTime >= ? AND dateTime <= ?',
+      whereArgs: [startTimestamp, endTimestamp],
+      orderBy: 'dateTime DESC', // 按日期倒序排列
+    );
+
+    return maps.map((m) => Record.fromMap(m)).toList();
+  }
+
+  //删除单条记录
+  Future<int> deleteRecord(int id) async {
+    final db = await database;
+    return await db.delete(
+      'records',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

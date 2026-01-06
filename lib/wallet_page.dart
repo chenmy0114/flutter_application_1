@@ -390,7 +390,8 @@ class _WalletPageState extends State<WalletPage> {
             child: Icon(Icons.settings),
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(30))),
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
           ),
         ),
       ],
@@ -423,12 +424,12 @@ class _WalletPageState extends State<WalletPage> {
           final summary = _daySummaries[day];
           final income = summary?['income'] ?? 0.0;
           final expense = summary?['expense'] ?? 0.0;
-          final net = income - expense;
-          final positive = net >= 0;
-          final bgColor =
-              positive ? Colors.green.shade100 : Colors.red.shade100;
-          final textColor =
-              positive ? Colors.green.shade900 : Colors.red.shade900;
+          // final net = income - expense;
+          // final positive = net >= 0;
+          // final bgColor =
+          //     positive ? Colors.green.shade100 : Colors.red.shade100;
+          // final textColor =
+          //     positive ? Colors.green.shade900 : Colors.red.shade900;
           final curDay = day;
 
           cells.add(Expanded(
